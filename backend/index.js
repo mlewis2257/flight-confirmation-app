@@ -3,8 +3,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const logger = require("morgan");
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3001;
 const MONGODB_URI = process.env.MONGDB_URI;
 
 dotenv.config();
@@ -12,6 +13,7 @@ dotenv.config();
 const app = express();
 
 // Middleware
+app.use(logger("dev"));
 app.use(cors());
 app.use(express.json());
 
