@@ -10,6 +10,7 @@ const flightSchema = new Schema({
   departureTime: Date,
   checkinCompleted: { type: Boolean, default: false },
   boardingPassUrl: String,
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model("Flight", flightSchema);
