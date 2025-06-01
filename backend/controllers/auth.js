@@ -6,9 +6,14 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+const generateAccessToken = (userId) => {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "15" });
+};
+
+const generatRefreshToken = (userId) => {
+  return jwt.sign({ userId }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 
 const signup = async (req, res) => {
@@ -37,9 +42,15 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ msg: "Invalid credentials" });
 
-    const token = generateToken(user._id);
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generatRefreshToken(user._id);
+
+    user.refreshToken = refreshToken;
+
+    await user.save();
     res.status(201).json({
-      token,
+      accessToken,
+      refreshToken,
       userId: user._id,
       email: user.email,
       msg: "Successfully logged in",
@@ -49,4 +60,32 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { signup, login };
+const signOut = async (req, res) => {
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+
+  if (!token) res.status(400).json({ msg: "No token provided" });
+  try {
+    res.status(200).json({ msg: "Signed Out Successfully" });
+  } catch (error) {
+    res.status(500).json({ msg: "Server error during sign-out" });
+  }
+};
+
+const refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) res.status(401).json({ msg: "No Refresh Token Provided" });
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    const user = await User.findOne(decoded.userId);
+
+    if (!user || user.refreshToken !== refreshToken)
+      res.status(403).json({ msg: "Invalid Refesh Token" });
+
+    const newAccessToken = generateAccessToken(user._id);
+    res.status(200).json({ accessToken: newAccessToken });
+  } catch (error) {
+    res.status(403).json({ msg: "Refresh token expired or invalid" });
+  }
+};
+
+module.exports = { signup, login, signOut, refreshToken };
